@@ -53,7 +53,7 @@ that fired it, so no score is unexplained. Reviews below 40 are excluded from ag
 ## What this changes
 
 Prices are computed only from reviews that survived de-duplication and cleared the
-credibility floor. Both counts are shown side by side — `counted / raw` — so the effect of
+credibility floor. Both counts are shown side by side — `counted of collected` — so the effect of
 the filtering is visible rather than hidden inside an average.
 
 ## Running it

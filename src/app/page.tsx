@@ -45,7 +45,8 @@ export default function Home() {
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="min-w-0 space-y-2">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="ko font-medium text-[16px]">{c.canonicalName}</span>
+                    <span className="font-medium text-[16px]">{c.nameEn}</span>
+                    <span className="ko text-[12px] text-dim">{c.canonicalName}</span>
                     <Pill>{c.variants.length} name variants</Pill>
                     <Pill>{c.sources.length} sources</Pill>
                   </div>
@@ -55,12 +56,14 @@ export default function Home() {
                     ))}
                   </div>
                   {c.prices.length > 0 && (
-                    <div className="text-[13px] text-muted mono">
+                    <div className="text-[13px] text-muted">
                       {c.prices.slice(0, 3).map((p) => (
-                        <span key={p.procedureId} className="mr-4 inline-block">
+                        <span key={p.procedureId} className="mr-5 inline-block">
                           {p.procedureEn}{" "}
-                          <span className="text-ink">{krw(p.medianKrw)}</span>{" "}
-                          <span className="text-dim">({usd(p.medianKrw)} · n={p.n})</span>
+                          <span className="mono text-ink">≈{usd(p.medianKrw)}</span>{" "}
+                          <span className="mono text-dim">
+                            ({krw(p.medianKrw)} · {p.n} {p.n === 1 ? "report" : "reports"})
+                          </span>
                         </span>
                       ))}
                     </div>
@@ -75,7 +78,7 @@ export default function Home() {
                   <Meter value={c.medianCredibility} />
                   <div className="text-[12px] text-muted mono">
                     {c.counted.length} counted
-                    <span className="text-dim"> / {c.naiveReviewCount} raw</span>
+                    <span className="text-dim"> of {c.naiveReviewCount} collected</span>
                   </div>
                   {c.incentivisedShare > 0 && (
                     <div className="text-[11px] text-bad">

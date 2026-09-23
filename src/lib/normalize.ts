@@ -15,18 +15,61 @@ const BRANCH_TOKENS = [
 ];
 
 /**
- * Latin-script renderings of Korean brand names. A romanization algorithm cannot
- * recover these: 더뷰티 romanizes to "deobyuti", but the clinic brands itself
+ * English brand names, keyed by the Hangul identity core. A romanization algorithm
+ * cannot recover these: 더뷰티 romanizes to "deobyuti", but the clinic brands itself
  * "THE BEAUTY". Real systems keep a curated lexicon for exactly this reason.
  */
-const LATIN_ALIASES: Record<string, string> = {
-  "thebeauty": "더뷰티",
-  "line": "라인",
-  "misoplus": "미소플러스",
-  "raon": "라온",
-  "yedam": "예담",
-  "hanbit": "한빛",
+const BRANDS_EN: Record<string, string> = {
+  "더뷰티": "The Beauty",
+  "라인": "Line",
+  "미소플러스": "Miso Plus",
+  "라온": "Raon",
+  "예담": "Yedam",
+  "한빛": "Hanbit",
 };
+
+/** Latin-script brandings fold to Hangul via the same lexicon: "THE BEAUTY" → 더뷰티. */
+const LATIN_ALIASES: Record<string, string> = Object.fromEntries(
+  Object.entries(BRANDS_EN).map(([ko, en]) => [en.replace(/\s+/g, "").toLowerCase(), ko]),
+);
+
+const TYPE_EN: Record<string, string> = {
+  "성형외과의원": "Plastic Surgery", "성형외과": "Plastic Surgery",
+  "피부과의원": "Dermatology", "피부과": "Dermatology",
+  "클리닉": "Clinic", "의원": "Clinic", "병원": "Hospital",
+};
+
+const BRANCH_EN: Record<string, string> = {
+  "강남": "Gangnam", "압구정": "Apgujeong", "신사": "Sinsa",
+  "청담": "Cheongdam", "삼성": "Samseong", "역삼": "Yeoksam",
+};
+
+function branchEn(b: string): string {
+  return BRANCH_EN[b.replace(/점$/, "")] ?? b;
+}
+
+/** Plain-English gloss for an audit-trail token, e.g. 성형외과 → "plastic surgery". */
+function gloss(token: string): string {
+  const en = TYPE_EN[token] ?? (BRANCH_TOKENS.includes(token) ? branchEn(token) : null);
+  return en ? ` (${en})` : "";
+}
+
+/** English brand for a Hangul identity core, or null if the lexicon has no entry. */
+export function brandEn(base: string): string | null {
+  return BRANDS_EN[base] ?? null;
+}
+
+/**
+ * English display name built from the parsed parts: brand + entity type, then branch.
+ * 라인성형외과 강남점 → "Line Plastic Surgery, Gangnam". Falls back to the Hangul core
+ * for a brand the lexicon doesn't know, rather than inventing a romanization.
+ */
+export function englishName(p: ParsedName): string {
+  const brand = brandEn(p.base) ?? p.base;
+  const type = p.type ? TYPE_EN[p.type] ?? "" : "";
+  const name = [brand, type].filter(Boolean).join(" ");
+  return p.branch ? `${name}, ${branchEn(p.branch)}` : name;
+}
 
 export interface ParsedName {
   raw: string;
@@ -61,19 +104,19 @@ export function parseClinicName(raw: string): ParsedName {
 
   let branch: string | null = null;
   for (const b of BRANCH_TOKENS) {
-    if (s.endsWith(b)) { branch = b; s = s.slice(0, -b.length); steps.push(`stripped branch "${b}"`); break; }
-    if (s.startsWith(b) && s.length > b.length + 1) { branch = b; s = s.slice(b.length); steps.push(`stripped locality prefix "${b}"`); break; }
+    if (s.endsWith(b)) { branch = b; s = s.slice(0, -b.length); steps.push(`stripped branch "${b}"${gloss(b)}`); break; }
+    if (s.startsWith(b) && s.length > b.length + 1) { branch = b; s = s.slice(b.length); steps.push(`stripped locality prefix "${b}"${gloss(b)}`); break; }
   }
 
   let type: string | null = null;
   for (const t of TYPE_SUFFIXES) {
-    if (s.endsWith(t)) { type = t; s = s.slice(0, -t.length); steps.push(`stripped entity type "${t}"`); break; }
+    if (s.endsWith(t)) { type = t; s = s.slice(0, -t.length); steps.push(`stripped entity type "${t}"${gloss(t)}`); break; }
   }
 
   // A branch token can sit between the brand and the type: 미소플러스의원압구정
   if (!branch) {
     for (const b of BRANCH_TOKENS) {
-      if (s.endsWith(b)) { branch = b; s = s.slice(0, -b.length); steps.push(`stripped branch "${b}"`); break; }
+      if (s.endsWith(b)) { branch = b; s = s.slice(0, -b.length); steps.push(`stripped branch "${b}"${gloss(b)}`); break; }
     }
   }
 
@@ -100,7 +143,10 @@ export function diceSimilarity(a: string, b: string): number {
 
 export interface ClinicEntity {
   id: string;
+  /** Most fully-qualified Korean surface form — what to search for locally. */
   canonicalName: string;
+  /** English display name for the target reader. */
+  nameEn: string;
   /** Every distinct surface string that resolved here, with its match score. */
   variants: { raw: string; base: string; score: number; steps: string[] }[];
 }
@@ -132,14 +178,15 @@ export function resolveClinics(rawNames: string[]): ClinicEntity[] {
   return clusters.map((c, i) => {
     // Canonical display name = the longest surface form seen, which is the most
     // fully-qualified rendering (e.g. 미소플러스성형외과 over 미소플러스).
-    const canonical = [...c.members].sort((a, b) => b.raw.length - a.raw.length)[0].raw;
+    const canonical = [...c.members].sort((a, b) => b.raw.length - a.raw.length)[0];
     const seen = new Map<string, { raw: string; base: string; score: number; steps: string[] }>();
     c.members.forEach((m, j) => {
       if (!seen.has(m.raw)) seen.set(m.raw, { raw: m.raw, base: m.base, score: c.scores[j], steps: m.steps });
     });
     return {
       id: `clinic-${String(i + 1).padStart(2, "0")}`,
-      canonicalName: canonical,
+      canonicalName: canonical.raw,
+      nameEn: englishName(canonical),
       variants: [...seen.values()].sort((a, b) => b.score - a.score),
     };
   });

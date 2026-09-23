@@ -6,7 +6,7 @@
 // back to the Korean sentence it came from.
 
 import { RAW_REVIEWS, SOURCES, type RawReview, type SourceId } from "@/data/corpus";
-import { resolveClinics, parseClinicName, type ClinicEntity } from "./normalize";
+import { resolveClinics, parseClinicName, brandEn, type ClinicEntity } from "./normalize";
 import { clusterDuplicates, type DuplicateCluster } from "./dedupe";
 import { scoreCredibility, type CredibilityResult } from "./credibility";
 import { normalizeProcedure, type ProcedureCategory } from "./procedures";
@@ -149,11 +149,16 @@ export function reviewById(id: string): EnrichedReview | undefined {
   return PIPELINE.enriched.find((r) => r.id === id);
 }
 
+/** Western notation, not the Korean 만 (10,000) unit: ₩4.4M, ₩450K. */
 export function krw(n: number): string {
-  return `₩${(n / 10000).toLocaleString()}만`;
+  if (n >= 1_000_000) return `₩${(n / 1_000_000).toLocaleString("en-US", { maximumFractionDigits: 2 })}M`;
+  return `₩${Math.round(n / 1000).toLocaleString("en-US")}K`;
 }
+
+/** Fixed indicative rate — stated as such wherever USD is shown. */
+export const KRW_PER_USD = 1380;
+
 export function usd(n: number): string {
-  // Indicative only — fixed rate, stated as such wherever it is shown.
-  return `$${Math.round(n / 1380 / 10) * 10}`;
+  return `$${(Math.round(n / KRW_PER_USD / 10) * 10).toLocaleString("en-US")}`;
 }
-export { parseClinicName };
+export { parseClinicName, brandEn };

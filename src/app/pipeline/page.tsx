@@ -5,6 +5,7 @@ import { Stat, Pill } from "@/components/ui";
 export default function PipelinePage() {
   const { stats, clusters, clinics, enriched } = PIPELINE;
   const flagged = enriched.filter((r) => r.credibility.band === "Likely incentivised");
+  const clinicName = new Map(clinics.map((c) => [c.id, c.nameEn]));
 
   return (
     <div className="space-y-10">
@@ -36,9 +37,10 @@ export default function PipelinePage() {
         <div className="rounded-xl border border-line bg-panel divide-y divide-line">
           {clinics.map((c) => (
             <div key={c.id} className="px-4 py-3">
-              <Link href={`/clinic/${c.id}`} className="ko text-[14px] font-medium hover:text-accent transition">
-                {c.canonicalName}
+              <Link href={`/clinic/${c.id}`} className="text-[14px] font-medium hover:text-accent transition">
+                {c.nameEn}
               </Link>
+              <span className="ko ml-2 text-[12px] text-dim">{c.canonicalName}</span>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {c.variants.map((v) => (
                   <span key={v.raw} className="ko rounded border border-line bg-panel2 px-2 py-0.5 text-[11px] text-muted">
@@ -55,7 +57,8 @@ export default function PipelinePage() {
         <h2 className="text-[15px] font-semibold">Stage 3 — Cross-source de-duplication</h2>
         <p className="text-[13px] text-muted max-w-3xl leading-relaxed">
           128-permutation MinHash over 4-character shingles, compared within a resolved clinic.
-          The earliest posting is kept and later repostings are suppressed. Estimated Jaccard is
+          The earliest posting is kept and later repostings are suppressed. Matching runs on the
+          Korean text; the English translation is shown above each for reading. Estimated Jaccard is
           shown against the exact value computed over the full shingle sets — mean absolute error
           across all pairs is{" "}
           <span className="mono text-ink">{stats.minhashMeanAbsError.toFixed(3)}</span>.
@@ -71,9 +74,10 @@ export default function PipelinePage() {
                   <span className="text-dim mono">{primary.postedAt}</span>
                   <span className="text-dim">kept</span>
                 </div>
-                <p className="ko text-[12.5px] text-muted leading-relaxed border-l-2 border-accent/40 pl-3">
-                  {primary.ko}
-                </p>
+                <div className="border-l-2 border-accent/40 pl-3 space-y-1">
+                  <p className="text-[13px] leading-relaxed">{primary.en}</p>
+                  <p className="ko text-[12px] text-dim leading-relaxed">{primary.ko}</p>
+                </div>
                 {cl.duplicates.map((d) => {
                   const dup = reviewById(d.id)!;
                   return (
@@ -87,9 +91,10 @@ export default function PipelinePage() {
                           minhash {d.estimated.toFixed(3)} · exact {d.exact.toFixed(3)}
                         </span>
                       </div>
-                      <p className="ko text-[12.5px] text-dim leading-relaxed border-l-2 border-bad/30 pl-3 mt-1">
-                        {dup.ko}
-                      </p>
+                      <div className="border-l-2 border-bad/30 pl-3 mt-1 space-y-1">
+                        <p className="text-[13px] text-muted leading-relaxed">{dup.en}</p>
+                        <p className="ko text-[12px] text-dim leading-relaxed">{dup.ko}</p>
+                      </div>
                     </div>
                   );
                 })}
@@ -114,11 +119,13 @@ export default function PipelinePage() {
               <div className="flex flex-wrap items-center gap-2 text-[12px]">
                 <span className="mono text-bad">{r.id}</span>
                 <Pill>{r.sourceLabel}</Pill>
-                <span className="ko text-muted">{r.clinicRaw}</span>
+                <span className="text-muted">{clinicName.get(r.clinicId)}</span>
+                <span className="ko text-dim">as written: {r.clinicRaw}</span>
                 <span className="grow" />
                 <span className="mono text-bad">score {r.credibility.score}</span>
               </div>
-              <p className="ko text-[12.5px] text-muted leading-relaxed">{r.ko}</p>
+              <p className="text-[13px] leading-relaxed">{r.en}</p>
+              <p className="ko text-[12px] text-dim leading-relaxed">{r.ko}</p>
               <div className="flex flex-wrap gap-1.5">
                 {r.credibility.signals.filter((s) => s.weight < 0).map((s, i) => (
                   <span key={i} className="rounded border border-bad/25 bg-bad/5 px-1.5 py-0.5 text-[11px] text-bad">

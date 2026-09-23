@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { PIPELINE, getClinic, krw, usd } from "@/lib/pipeline";
+import { PIPELINE, brandEn, getClinic, krw, usd } from "@/lib/pipeline";
 import { Band, Meter, Pill, Stat } from "@/components/ui";
 
 export function generateStaticParams() {
@@ -23,7 +23,12 @@ export default async function ClinicPage({ params }: { params: Promise<{ id: str
         <Link href="/" className="text-[13px] text-dim hover:text-ink transition">
           ← All clinics
         </Link>
-        <h1 className="ko text-[26px] font-semibold tracking-tight mt-2">{clinic.canonicalName}</h1>
+        <h1 className="text-[26px] font-semibold tracking-tight mt-2">{clinic.nameEn}</h1>
+        <div className="text-[13px] text-dim mt-1">
+          Korean name <span className="ko text-muted">{clinic.canonicalName}</span>
+          <span className="mx-2">·</span>
+          use this when searching or booking locally
+        </div>
       </div>
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -45,6 +50,7 @@ export default async function ClinicPage({ params }: { params: Promise<{ id: str
                 </span>
                 <span className="mono text-muted">
                   base <span className="ko text-ink">{v.base}</span>
+                  {brandEn(v.base) && <span className="text-dim"> ({brandEn(v.base)})</span>}
                 </span>
                 <span className="mono text-accent w-12 text-right">{v.score.toFixed(2)}</span>
               </div>
@@ -66,10 +72,10 @@ export default async function ClinicPage({ params }: { params: Promise<{ id: str
               <thead className="text-[11px] uppercase tracking-wider text-dim bg-panel2">
                 <tr>
                   <th className="text-left font-medium px-4 py-2">Procedure</th>
-                  <th className="text-right font-medium px-4 py-2">n</th>
-                  <th className="text-right font-medium px-4 py-2">Median</th>
-                  <th className="text-right font-medium px-4 py-2">Range</th>
-                  <th className="text-right font-medium px-4 py-2">USD approx.</th>
+                  <th className="text-right font-medium px-4 py-2">Reports</th>
+                  <th className="text-right font-medium px-4 py-2">Median (USD approx.)</th>
+                  <th className="text-right font-medium px-4 py-2">Median (KRW)</th>
+                  <th className="text-right font-medium px-4 py-2">Range (KRW)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -77,11 +83,11 @@ export default async function ClinicPage({ params }: { params: Promise<{ id: str
                   <tr key={p.procedureId}>
                     <td className="px-4 py-2.5">{p.procedureEn}</td>
                     <td className="px-4 py-2.5 text-right mono text-muted">{p.n}</td>
-                    <td className="px-4 py-2.5 text-right mono">{krw(p.medianKrw)}</td>
+                    <td className="px-4 py-2.5 text-right mono">≈{usd(p.medianKrw)}</td>
+                    <td className="px-4 py-2.5 text-right mono text-muted">{krw(p.medianKrw)}</td>
                     <td className="px-4 py-2.5 text-right mono text-muted">
                       {p.minKrw === p.maxKrw ? "—" : `${krw(p.minKrw)}–${krw(p.maxKrw)}`}
                     </td>
-                    <td className="px-4 py-2.5 text-right mono text-dim">{usd(p.medianKrw)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -94,7 +100,7 @@ export default async function ClinicPage({ params }: { params: Promise<{ id: str
         <h2 className="text-[15px] font-semibold">
           Evidence{" "}
           <span className="font-normal text-dim text-[13px]">
-            — every translation shown against the Korean it came from
+            — every English translation shown beside the Korean original it came from
           </span>
         </h2>
 
@@ -123,10 +129,10 @@ export default async function ClinicPage({ params }: { params: Promise<{ id: str
               </div>
 
               <div className="grid md:grid-cols-2 gap-4">
+                <p className="text-[13.5px] leading-relaxed">{r.en}</p>
                 <p className="ko text-[13px] leading-relaxed text-muted border-l-2 border-line pl-3">
                   {r.ko}
                 </p>
-                <p className="text-[13.5px] leading-relaxed">{r.en}</p>
               </div>
 
               <div className="pt-1 space-y-2">
