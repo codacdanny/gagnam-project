@@ -154,6 +154,20 @@ export interface ClinicEntity {
 const MATCH_THRESHOLD = 0.82;
 
 /**
+ * URL id from the English name, so links survive corpus changes that reorder clusters.
+ * "Line Plastic Surgery, Gangnam" → "line-plastic-surgery-gangnam". A name with no Latin
+ * characters (brand missing from the lexicon) falls back to a positional id.
+ */
+function clinicSlug(nameEn: string, index: number, used: Set<string>): string {
+  const base = nameEn.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+    || `clinic-${String(index + 1).padStart(2, "0")}`;
+  let id = base;
+  for (let n = 2; used.has(id); n++) id = `${base}-${n}`;
+  used.add(id);
+  return id;
+}
+
+/**
  * Greedy agglomerative clustering over normalised bases.
  * Exact base match is score 1.0; otherwise Dice must clear MATCH_THRESHOLD.
  */
@@ -175,6 +189,7 @@ export function resolveClinics(rawNames: string[]): ClinicEntity[] {
     }
   }
 
+  const usedIds = new Set<string>();
   return clusters.map((c, i) => {
     // Canonical display name = the longest surface form seen, which is the most
     // fully-qualified rendering (e.g. 미소플러스성형외과 over 미소플러스).
@@ -183,10 +198,11 @@ export function resolveClinics(rawNames: string[]): ClinicEntity[] {
     c.members.forEach((m, j) => {
       if (!seen.has(m.raw)) seen.set(m.raw, { raw: m.raw, base: m.base, score: c.scores[j], steps: m.steps });
     });
+    const nameEn = englishName(canonical);
     return {
-      id: `clinic-${String(i + 1).padStart(2, "0")}`,
+      id: clinicSlug(nameEn, i, usedIds),
       canonicalName: canonical.raw,
-      nameEn: englishName(canonical),
+      nameEn,
       variants: [...seen.values()].sort((a, b) => b.score - a.score),
     };
   });

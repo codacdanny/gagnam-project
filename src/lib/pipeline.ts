@@ -8,8 +8,16 @@
 import { RAW_REVIEWS, SOURCES, type RawReview, type SourceId } from "@/data/corpus";
 import { resolveClinics, parseClinicName, brandEn, type ClinicEntity } from "./normalize";
 import { clusterDuplicates, type DuplicateCluster } from "./dedupe";
-import { scoreCredibility, type CredibilityResult } from "./credibility";
+import { CREDIBILITY_FLOOR, scoreCredibility, type CredibilityResult } from "./credibility";
 import { normalizeProcedure, type ProcedureCategory } from "./procedures";
+
+/** What happened to a review: used in prices, removed as a repost, or set aside as likely paid. */
+export type ReviewOutcome = "used" | "repost" | "paid";
+
+export function outcomeOf(r: { isDuplicateOf: string | null; credibility: CredibilityResult }): ReviewOutcome {
+  if (r.isDuplicateOf) return "repost";
+  return r.credibility.score >= CREDIBILITY_FLOOR ? "used" : "paid";
+}
 
 export interface EnrichedReview extends RawReview {
   clinicId: string;
@@ -37,11 +45,9 @@ export interface Clinic extends ClinicEntity {
   prices: PriceStat[];
   medianCredibility: number;
   incentivisedShare: number;
-  /** Median price if you naively trusted every review — shown against the real one. */
+  /** Every review found for this clinic, before de-duplication and credibility filtering. */
   naiveReviewCount: number;
 }
-
-const CREDIBILITY_FLOOR = 40;
 
 function median(xs: number[]): number {
   if (!xs.length) return 0;
@@ -109,7 +115,10 @@ function build() {
       .filter((p): p is PriceStat => p !== null)
       .sort((a, b) => b.n - a.n);
 
-    const incentivised = reviews.filter((r) => r.credibility.band === "Likely incentivised").length;
+    // Scores and shares are over de-duplicated reviews: a repost is one patient, not two,
+    // so it must not pull the median or dilute the paid share.
+    const unique = reviews.filter((r) => !r.isDuplicateOf);
+    const incentivised = unique.filter((r) => r.credibility.band === "Likely incentivised").length;
 
     return {
       ...e,
@@ -118,8 +127,8 @@ function build() {
       sources: [...new Set(reviews.map((r) => r.source))],
       procedures: [...new Map(counted.filter((r) => r.procedure).map((r) => [r.procedure!.id, r.procedure!])).values()],
       prices,
-      medianCredibility: median(reviews.map((r) => r.credibility.score)),
-      incentivisedShare: reviews.length ? incentivised / reviews.length : 0,
+      medianCredibility: median(unique.map((r) => r.credibility.score)),
+      incentivisedShare: unique.length ? incentivised / unique.length : 0,
       naiveReviewCount: reviews.length,
     };
   }).sort((a, b) => b.counted.length - a.counted.length || b.medianCredibility - a.medianCredibility);
@@ -149,16 +158,5 @@ export function reviewById(id: string): EnrichedReview | undefined {
   return PIPELINE.enriched.find((r) => r.id === id);
 }
 
-/** Western notation, not the Korean 만 (10,000) unit: ₩4.4M, ₩450K. */
-export function krw(n: number): string {
-  if (n >= 1_000_000) return `₩${(n / 1_000_000).toLocaleString("en-US", { maximumFractionDigits: 2 })}M`;
-  return `₩${Math.round(n / 1000).toLocaleString("en-US")}K`;
-}
-
-/** Fixed indicative rate — stated as such wherever USD is shown. */
-export const KRW_PER_USD = 1380;
-
-export function usd(n: number): string {
-  return `$${(Math.round(n / KRW_PER_USD / 10) * 10).toLocaleString("en-US")}`;
-}
+export { krw, usd, formatDate, KRW_PER_USD } from "./format";
 export { parseClinicName, brandEn };

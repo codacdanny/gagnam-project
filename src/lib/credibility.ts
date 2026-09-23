@@ -50,6 +50,14 @@ const AUTHENTIC_RULES: Rule[] = [
   { id: "process", label: "Describes consultation or aftercare process", weight: +8, patterns: [/상담실장/, /동의서/, /집도의/, /사후관리/, /실밥/, /재진|재내원/] },
 ];
 
+/** Reviews below this are excluded from every price and count. */
+export const CREDIBILITY_FLOOR = 40;
+const FIRST_HAND = 70;
+
+export function bandFor(score: number): CredibilityResult["band"] {
+  return score >= FIRST_HAND ? "Likely first-hand" : score >= CREDIBILITY_FLOOR ? "Mixed signals" : "Likely incentivised";
+}
+
 export interface CredibilityResult {
   score: number;
   band: "Likely first-hand" | "Mixed signals" | "Likely incentivised";
@@ -101,8 +109,6 @@ export function scoreCredibility(r: RawReview): CredibilityResult {
 
   const raw = signals.reduce((acc, s) => acc + s.weight, 60);
   const score = Math.max(0, Math.min(100, raw));
-  const band: CredibilityResult["band"] =
-    score >= 70 ? "Likely first-hand" : score >= 40 ? "Mixed signals" : "Likely incentivised";
 
-  return { score, band, signals: signals.sort((a, b) => a.weight - b.weight) };
+  return { score, band: bandFor(score), signals: signals.sort((a, b) => a.weight - b.weight) };
 }

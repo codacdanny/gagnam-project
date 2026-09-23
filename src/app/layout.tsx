@@ -19,7 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <header className="border-b border-line sticky top-0 z-20 bg-panel/90 backdrop-blur">
           <div className="mx-auto max-w-5xl px-4 h-16 flex items-center justify-between gap-4">
-            <Link href="/" className="font-serif text-[19px] font-semibold tracking-tight text-ink">
+            <Link href="/" className="font-serif text-[19px] font-semibold tracking-tight text-ink whitespace-nowrap">
               Gangnam <span className="text-accent">Evidence</span>
             </Link>
             <nav className="flex items-center gap-1 text-[15px]">
@@ -27,7 +27,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 Clinics
               </Link>
               <Link href="/pipeline" className="px-3 py-2 rounded-lg text-muted hover:text-ink hover:bg-panel2 transition-colors">
-                How we check reviews
+                <span className="sm:hidden">Method</span>
+                <span className="hidden sm:inline">How we check reviews</span>
               </Link>
             </nav>
           </div>
